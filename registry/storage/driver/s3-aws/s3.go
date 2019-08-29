@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -440,11 +442,11 @@ func New(params DriverParameters) (*Driver, error) {
 	// }
 
 	d := &driver{
-		S3:        s3obj,
-		Bucket:    params.Bucket,
-		ChunkSize: params.ChunkSize,
-		Encrypt:   params.Encrypt,
-		KeyID:     params.KeyID,
+		S3:                          s3obj,
+		Bucket:                      params.Bucket,
+		ChunkSize:                   params.ChunkSize,
+		Encrypt:                     params.Encrypt,
+		KeyID:                       params.KeyID,
 		MultipartCopyChunkSize:      params.MultipartCopyChunkSize,
 		MultipartCopyMaxConcurrency: params.MultipartCopyMaxConcurrency,
 		MultipartCopyThresholdSize:  params.MultipartCopyThresholdSize,
@@ -531,6 +533,9 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 		}
 		return d.newWriter(key, *resp.UploadId, nil), nil
 	}
+
+	log.Infof("**Adidas** Going to list multipart uploads for key %s", key)
+
 	resp, err := d.S3.ListMultipartUploads(&s3.ListMultipartUploadsInput{
 		Bucket: aws.String(d.Bucket),
 		Prefix: aws.String(key),
@@ -540,6 +545,8 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 	}
 
 	for _, multi := range resp.Uploads {
+		log.Infof("**Adidas** Key: %s - searching for %s", *multi.Key, key)
+
 		if key != *multi.Key {
 			continue
 		}
@@ -557,6 +564,10 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 		}
 		return d.newWriter(key, *multi.UploadId, resp.Parts), nil
 	}
+	log.Infof("**Adidas** Multipart upload %s not found!!", key)
+
+	ForcedError
+
 	return nil, storagedriver.PathNotFoundError{Path: path}
 }
 
