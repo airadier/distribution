@@ -542,7 +542,7 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 	log.Infof("**Adidas** Going to list multipart uploads for path %s key %s", path, key)
 
 	var resp *s3.ListMultipartUploadsOutput
-	for retries := 0; retries < 3; retries++ {
+	for retries := 0; retries < 50; retries++ {
 		var err error
 		resp, err = d.S3.ListMultipartUploads(&s3.ListMultipartUploadsInput{
 			Bucket: aws.String(d.Bucket),
@@ -553,7 +553,7 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 		}
 
 		if len(resp.Uploads) == 0 {
-			log.Infof("**Adidas** NO MULTIUPLOADS! Path: %s Key: %s, let's retry", path, key)
+			log.Infof("**Adidas** NO MULTIUPLOADS! Try number %d - Path: %s Key: %s, let's retry.", retries, path, key)
 			time.Sleep(100 * time.Millisecond)
 		} else {
 			log.Infof("**Adidas** Iterating over multiuploads for Path: %s Key: %s", path, key)
