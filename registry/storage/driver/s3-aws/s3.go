@@ -543,7 +543,8 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 
 	var resp *s3.ListMultipartUploadsOutput
 	for retries := 0; retries < 3; retries++ {
-		resp, err := d.S3.ListMultipartUploads(&s3.ListMultipartUploadsInput{
+		var err error
+		resp, err = d.S3.ListMultipartUploads(&s3.ListMultipartUploadsInput{
 			Bucket: aws.String(d.Bucket),
 			Prefix: aws.String(key),
 		})
