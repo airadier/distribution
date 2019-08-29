@@ -566,8 +566,6 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 	}
 	log.Infof("**Adidas** Multipart upload %s not found!!", key)
 
-	ForcedError
-
 	return nil, storagedriver.PathNotFoundError{Path: path}
 }
 
