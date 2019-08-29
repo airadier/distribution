@@ -517,6 +517,9 @@ func (d *driver) Reader(ctx context.Context, path string, offset int64) (io.Read
 // at the location designated by "path" after the call to Commit.
 func (d *driver) Writer(ctx context.Context, path string, append bool) (storagedriver.FileWriter, error) {
 	key := d.s3Path(path)
+
+	log.Infof("**Adidas** Writer called for path %s key %s append %s", path, key, append)
+
 	if !append {
 		// TODO (brianbland): cancel other uploads at this path
 		resp, err := d.S3.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
@@ -531,10 +534,12 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 		if err != nil {
 			return nil, err
 		}
+
+		log.Infof("**Adidas** Returning new writer path %s key %s", path, key)
 		return d.newWriter(key, *resp.UploadId, nil), nil
 	}
 
-	log.Infof("**Adidas** Going to list multipart uploads for key %s", key)
+	log.Infof("**Adidas** Going to list multipart uploads for path %s key %s", path, key)
 
 	resp, err := d.S3.ListMultipartUploads(&s3.ListMultipartUploadsInput{
 		Bucket: aws.String(d.Bucket),
@@ -544,8 +549,14 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 		return nil, parseError(path, err)
 	}
 
-	for _, multi := range resp.Uploads {
-		log.Infof("**Adidas** Key: %s - searching for %s", *multi.Key, key)
+	if len(resp.Uploads == 0) {
+		log.Infof("**Adidas** NO MULTIUPLOADS! Path: %s Key: %s", path, key)
+	} else {
+		log.Infof("**Adidas** Iterating over multiuplaods for Path: %s Key: %s", path, key)
+	}
+
+	for i, multi := range resp.Uploads {
+		log.Infof("**Adidas** result %d Multiupload Key: %s - searching for %s", i, *multi.Key, key)
 
 		if key != *multi.Key {
 			continue
