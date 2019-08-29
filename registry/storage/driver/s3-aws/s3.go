@@ -541,24 +541,18 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 
 	log.Infof("**Adidas** Going to list multipart uploads for path %s key %s", path, key)
 
-	var resp *s3.ListMultipartUploadsOutput
-	for retries := 0; retries < 50; retries++ {
-		var err error
-		resp, err = d.S3.ListMultipartUploads(&s3.ListMultipartUploadsInput{
-			Bucket: aws.String(d.Bucket),
-			Prefix: aws.String(key),
-		})
-		if err != nil {
-			return nil, parseError(path, err)
-		}
+	resp, err := d.S3.ListMultipartUploads(&s3.ListMultipartUploadsInput{
+		Bucket: aws.String(d.Bucket),
+		Prefix: aws.String(key),
+	})
+	if err != nil {
+		return nil, parseError(path, err)
+	}
 
-		if len(resp.Uploads) == 0 {
-			log.Infof("**Adidas** NO MULTIUPLOADS! Try number %d - Path: %s Key: %s, let's retry.", retries, path, key)
-			time.Sleep(100 * time.Millisecond)
-		} else {
-			log.Infof("**Adidas** Iterating over multiuploads for Path: %s Key: %s", path, key)
-			break
-		}
+	if len(resp.Uploads) == 0 {
+		log.Infof("**Adidas** NO MULTIUPLOADS! Path: %s Key: %s, let's retry.", path, key)
+	} else {
+		log.Infof("**Adidas** Iterating over multiuploads for Path: %s Key: %s", path, key)
 	}
 
 	for i, multi := range resp.Uploads {
@@ -581,9 +575,16 @@ func (d *driver) Writer(ctx context.Context, path string, append bool) (storaged
 		}
 		return d.newWriter(key, *multi.UploadId, resp.Parts), nil
 	}
-	log.Infof("**Adidas** Multipart upload %s not found!!", key)
+	log.Infof("**Adidas** Multipart upload %s not found!! HACK: Returning new one", key)
 
-	return nil, storagedriver.PathNotFoundError{Path: path}
+	//Very very dirty hack - as it seems that upload from client to Harbor is done completely before pushing to S3,
+	//if the multipart upload is not found, let's create a new one, as it seems that it fails it there is a long delay between
+	//the creation and the listing of existing multipart uploads
+	//In case something gets corrupted, it should be detected by the digest
+
+	writer, err := d.Writer(ctx, path, false)
+	return writer, err
+	//return nil, storagedriver.PathNotFoundError{Path: path}
 }
 
 // Stat retrieves the FileInfo for the given path, including the current size
